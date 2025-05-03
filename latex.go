@@ -53,6 +53,13 @@ type LatexEngine struct {
 	logDst       *logDestination
 }
 
+func (e *LatexEngine) removeBuggySyntexBusyFile() {
+	busyFile := filepath.Join(e.currentDir, strings.TrimSuffix(e.currentFile, filepath.Ext(e.currentFile))+" 2.synctex(busy)")
+	if _, err := os.Stat(busyFile); err == nil {
+		os.Remove(busyFile)
+	}
+}
+
 func (e *LatexEngine) parseSrc() ([]byte, []byte, error) {
 	fullSrcPath := filepath.Join(e.currentDir, e.currentFile)
 	src, err := os.ReadFile(fullSrcPath)
@@ -115,6 +122,7 @@ func (e *LatexEngine) handleCacheMiss(logDst io.Writer) int {
 				panic(err)
 			}
 		}
+		e.removeBuggySyntexBusyFile()
 	}
 
 	cmd := e.makeCommand(logDst)
@@ -125,6 +133,7 @@ func (e *LatexEngine) handleCacheMiss(logDst io.Writer) int {
 			return -1
 		}
 	}
+	e.removeBuggySyntexBusyFile()
 
 	e.cachePreamble(true)
 	return cmd.ProcessState.ExitCode()
@@ -149,6 +158,7 @@ func (e *LatexEngine) Typeset(logDst io.Writer, dir string, args []string, file 
 	e.cmdStdinPipe.Write(mainContent)
 	e.cmdStdinPipe.Close()
 	e.cmd.Wait()
+	e.removeBuggySyntexBusyFile()
 	exitCode := e.cmd.ProcessState.ExitCode()
 	e.cachePreamble(false)
 	return exitCode
